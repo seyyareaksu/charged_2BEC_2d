@@ -5,16 +5,16 @@ Charged two component Bose-Einstein Condensates in two dimensions using XMDS2  s
 
 - Create conda environment from file 
 
-> conda env create -f tcrbec_xmds_environment.yml
+> conda env create -f environment_c2bec2d_xmds.yml
 
 - Export conda environment if updated:
 
-> conda env export > tcrbec_xmds_environment.yml
+> conda env export > environment_c2bec2d_xmds.yml
 
 - Install explicit conda environment for linux
 
-> conda create --name myenv --file tcrbec_xmds_spec-file.txt
+> conda create --name myenv --file spec-file_c2bec2d_xmds.txt
 
 - Export explicit conda environment for linux if updated:
 
-> conda list --explicit > tcrbec_xmds_spec-file.txt
+> conda list --explicit > spec-file_c2bec2d_xmds.txt
