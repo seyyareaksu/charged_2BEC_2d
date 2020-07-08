@@ -1,0 +1,383 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE simulation [
+<!ENTITY nlat    "nlatVALUE">
+<!ENTITY xmax    "xmaxVALUE">
+<!ENTITY ymax    "ymaxVALUE">
+<!ENTITY tmax    "tmaxVALUE">
+<!ENTITY nsamp1  "nsamples1VALUE">
+<!ENTITY nsamp2  "nsamples2VALUE">
+<!ENTITY tol     "tolVALUE">
+<!ENTITY args_in_filename "argsVALUE">
+]>
+<simulation xmds-version="2">
+
+  <name>xgpe2d</name>
+  <author>Levent Subasi, Seyyare Aksu</author>
+  <description>
+
+    Seyyare bu description kismini duzenler misin?
+
+    Magnetic field in the symmetric gauge added: PPhi[s] denotes magnetic field for component s.
+
+    Calculate the ground state of the non-linear Schrodinger equation in a 2d harmonic trap with a perpendicular magnetic field.
+    This is done by evolving it in imaginary time while re-normalising each timestep.
+    Adapted from a worked example to use Hankel transform. (We switched to Cartesian coord. and standart F.T.)
+    This solves the imaginary time evolution given by 
+
+    dphi/dtau = { 0.5*(d^2/dr^2 + 1/r d/dr - ml^2/r^2) + ml*nPhi - 0.5*r^2 - g*|phi|^2  } * phi
+
+    via Hankel transform
+
+    dphi/dtau = { HT[-0.5*kr*kr]  - (- ml*nPhi + g*|phi}^2)  } * phi
+
+    where nPhi denotes rotation freq or magnetic flux (scaled) and Uint=g in Seyyare's notation.
+
+  </description>
+
+  <features>
+    <bing />
+    <!--
+    // diagnostics will make sure that all nonlocal accesses of dimensions are safe
+    <diagnostics />
+    <benchmark />
+    <error_check />
+    <fftw plan="exhaustive" />
+    <fftw plan="patient" />
+    -->
+    <auto_vectorise />
+    <openmp />
+
+    <globals>
+      <![CDATA[
+        // const real Nparticles = 1.0;
+      ]]>
+    </globals>
+    <arguments append_args_to_output_filename="&args_in_filename;">
+     <argument name="use_phi0"  type="int"  default_value="1" />
+     <argument name="use_Vext0" type="int"  default_value="1" />
+     <argument name="r0"        type="real" default_value="0" />
+     <argument name="N0"        type="real" default_value="1.0" />
+     <argument name="N1"        type="real" default_value="1.0" />
+     <argument name="Q0"        type="real" default_value="1.0" />
+     <argument name="Q1"        type="real" default_value="1.0" />
+     <argument name="U00"       type="real" default_value="100.0" />
+     <argument name="U11"       type="real" default_value="100.0" />
+     <argument name="U01"       type="real" default_value="96.0" />
+     <argument name="U10"       type="real" default_value="96.0" />
+     <argument name="Omega"     type="real" default_value="0.0" />
+     <argument name="Phi0"      type="real" default_value="0.0" />
+     <argument name="Phi1"      type="real" default_value="0.0" />
+     <argument name="lcom"      type="real" default_value="0.0" />
+     <!--<![CDATA[
+       /* derived constants */
+       Uint_hbar_on16 = Uint_hbar/16.0;
+     ]]> -->
+   </arguments>
+  </features>
+
+  <geometry>
+    <propagation_dimension> t </propagation_dimension>
+    <transverse_dimensions>
+      <dimension name="x" lattice="&nlat;"  domain="(-&xmax;, &xmax;)" />
+      <dimension name="y" lattice="&nlat;"  domain="(-&ymax;, &ymax;)" />
+      <dimension name="s" type="integer" lattice="2" domain="(0,1)" aliases="sp"/>
+    </transverse_dimensions>
+  </geometry>
+
+  <vector name="radial_coord" initial_basis="x y" type="real">
+    <components> r2 r theta</components>
+    <initialisation>
+      <![CDATA[
+        r2 = x*x+y*y;
+        r  = sqrt(r2);
+	theta = atan2(y,x);
+      ]]>
+    </initialisation>
+  </vector>
+
+  <vector name="potential" initial_basis="x y s" type="real">
+    <components> Vext </components>
+    <initialisation>
+      <dependencies basis="x y s">radial_coord potential0</dependencies>
+      <![CDATA[
+        // Vext  = 0.5*(x*x+y*y);
+        switch(use_Vext0){
+          case 0: Vext =  0.5*(r-r0)*(r-r0);
+	  case 1: Vext =  Vext0; 
+	  break;
+          }
+      ]]>
+    </initialisation>
+  </vector>
+
+  <vector name="potential0" dimensions="x y s" type="real">
+  <components> Vext0 </components>
+    <initialisation kind="hdf5">
+      <filename> 2Vext.h5 </filename>
+    </initialisation>
+  </vector>
+
+  <vector name="number_charge" type="real" dimensions="s">
+    <components> NN QQ PPhi </components>
+    <initialisation>
+      <![CDATA[
+	 NN = (1-s)*N0 + s*N1;
+	 QQ = (1-s)*Q0 + s*Q1;
+	 PPhi = (1-s)*Phi0 + s*Phi1;
+      ]]>
+    </initialisation>
+  </vector>
+
+  <vector name="coupling" type="real" dimensions="s sp">
+    <components> UU </components>
+    <initialisation>
+      <![CDATA[
+      UU = U00*(1-s)*(1-sp)
+          +U11*(  s)*(  sp)
+	  +U01*(1-s)*(  sp)
+	  +U10*(  s)*(1-sp);
+      ]]>
+    </initialisation>
+  </vector>
+
+  <computed_vector name="interaction" dimensions="x y s" type="complex">
+    <components>
+      Uphi2
+    </components>
+    <evaluation>
+      <dependencies basis="x y s sp">coupling wavefunction</dependencies>
+      <![CDATA[
+        Uphi2 = UU*mod2(phi(s => sp));
+      ]]>
+    </evaluation>
+  </computed_vector>
+
+  <vector name="wavefunction" initial_basis="x y s" type="complex">
+    <components> phi </components>
+    <initialisation>
+	   <dependencies basis="x y s">radial_coord initial_wavefunction</dependencies>
+      <![CDATA[
+      switch(use_phi0){
+        case 0: phi = 1.0*exp(-(x*x+y*y)/(2-s)/16);
+	case 1: phi  = phi0; 
+	break;
+      }
+      ]]>
+    </initialisation>
+  </vector>
+
+  <vector type="complex" name="initial_wavefunction" dimensions="x y s">
+  <components>phi0</components>
+    <initialisation kind="hdf5">
+      <filename> 2phi0.h5 </filename>
+    </initialisation>
+  </vector>
+
+  <computed_vector name="normalisation" dimensions="s" type="real">
+    <components> Ncalc </components>
+    <evaluation>
+      <dependencies basis="x y s">wavefunction</dependencies>
+      <![CDATA[
+        // Calculate the current normalisation of the wave function.
+        Ncalc = mod2(phi);
+      ]]>
+    </evaluation>
+  </computed_vector>
+
+  <computed_vector name="dens_square" dimensions="s" type="real">
+    <components> dens_sq dens1dens2 </components>
+    <evaluation>
+      <dependencies basis="x y s">wavefunction</dependencies>
+      <![CDATA[
+        // Calculate the current normalisation of the wave function.
+        dens_sq = mod2(phi)*mod2(phi);
+	dens1dens2 = mod2(phi(s=>0))*mod2(phi(s=>1));
+      ]]>
+    </evaluation>
+  </computed_vector>
+
+  <computed_vector name="grad_phi" dimensions="x y s" type="complex">
+    <components> phi_x phi_y </components>
+    <evaluation>
+      <dependencies basis="kx ky s">wavefunction</dependencies>
+      <![CDATA[
+          phi_x = -i*kx*phi;
+          phi_y = -i*ky*phi;
+      ]]>
+    </evaluation>
+  </computed_vector>
+
+  <computed_vector name="ang_mom" dimensions="s" type="complex">
+    <components> Lz </components>
+    <evaluation>
+      <dependencies basis="x y s">wavefunction grad_phi</dependencies>
+      <![CDATA[
+        Lz = -conj(phi)*i*( x*phi_y-y*phi_x );
+      ]]>
+    </evaluation>
+  </computed_vector>
+
+  <!-- Calculate the kinetic energy as an integral in fourier space -->
+  <computed_vector name="kinetic_energy" dimensions="s" type="real">
+    <components>KE</components>
+    <evaluation>
+      <dependencies basis="kx ky">wavefunction</dependencies>
+      <![CDATA[
+                  KE = 0.5*(kx*kx+ky*ky)*mod2(phi);
+      ]]>
+    </evaluation>
+  </computed_vector>
+
+  <!-- Calculate the spatial energy terms as integrals in position space -->
+  <computed_vector name="spatial_energy" dimensions="s" type="real">
+    <components>EVext Eintss Eint10 EPhi2</components>
+    <evaluation>
+      <dependencies basis="x y s">potential wavefunction number_charge radial_coord</dependencies>
+      <![CDATA[
+            EVext  = Vext * mod2(phi);
+	    Eintss = 0.5 * (U00*(1-s)+s*U11) * mod2(phi) * mod2(phi);
+	    Eint10 = 0.5 * U10 * mod2(phi) * mod2(phi(s=>1-s));
+            EPhi2  = 0.5 * r2 * PPhi * PPhi * mod2(phi);
+      ]]>
+    </evaluation>
+  </computed_vector>
+  
+    <!-- Calculate the spatial energy terms as integrals in position space -->
+  <computed_vector name="chemical_potential" dimensions="s" type="real">
+    <components>mu</components>
+    <evaluation>
+      <dependencies basis="s"> number_charge kinetic_energy spatial_energy </dependencies>
+      <![CDATA[
+         mu = (KE + EVext + 2*Eintss +  2*Eint10)/NN;
+      ]]>
+    </evaluation>
+  </computed_vector>
+
+  <computed_vector name="energy" dimensions="" type="real">
+    <components> EN Ekin Epot Eint Virial</components>
+    <evaluation>
+      <dependencies basis="x y s">wavefunction grad_phi potential</dependencies>
+      <![CDATA[
+        Ekin = 0.5 *( mod2(phi_x) + mod2(phi_y) );
+        Epot = Vext * mod2(phi);
+	Eint = 0.5 * U00 * mod2(phi) * mod2(phi) + 0.5 * U10* mod2(phi) * mod2(phi(s=>1-s));
+	EN = Ekin + Epot + Eint;
+	Virial = Ekin - Epot + Eint;
+      ]]>
+    </evaluation>
+  </computed_vector>
+
+  <sequence>
+      <filter>
+        <![CDATA[
+	printf("\n\n Real/Imag. time evolution of a rotating two-component BEC: \n\n\n");
+        ]]>
+      </filter>
+
+      <filter>
+      <!-- Let's normalize the wavefunction before we start the time evolution -->
+        <dependencies>wavefunction normalisation number_charge</dependencies>
+        <![CDATA[
+          phi *= sqrt( NN / Ncalc);
+        ]]>
+      </filter>
+
+    <integrate algorithm="ARK45" interval="&tmax;" steps="1000" tolerance="&tol;">
+
+      <samples>&nsamp1; &nsamp2;</samples>
+
+      <filters where="step end">
+        <filter>
+          <dependencies>wavefunction normalisation number_charge</dependencies>
+          <![CDATA[
+            // Correct normalisation of the wavefunction
+            phi *= sqrt( NN / Ncalc);
+          ]]>
+        </filter>
+      </filters>
+
+      <operators>
+        <operator kind="ip">
+          <operator_names>T</operator_names>
+          <![CDATA[
+            T = -0.5*(kx*kx+ky*ky);
+          ]]>
+        </operator>
+        <operator kind="ex">
+          <operator_names>Tx</operator_names>
+          <![CDATA[
+            Tx = kx;
+          ]]>
+        </operator>
+        <operator kind="ex">
+          <operator_names>Ty</operator_names>
+          <![CDATA[
+            Ty = ky;
+          ]]>
+        </operator>
+
+        <integration_vectors>wavefunction</integration_vectors>
+
+        <dependencies>potential interaction number_charge radial_coord</dependencies>
+
+        <![CDATA[
+	  dphi_dt =  T[phi] - (Vext + 0.5*PPhi*PPhi*r2)*phi
+		    +QQ*Omega*(-x*Ty[phi]+y*Tx[phi])
+		    +PPhi *(-x*Ty[phi]+y*Tx[phi])
+		    +lcom*phi
+		    -Uphi2*phi;
+        ]]>
+      </operators>
+    </integrate>
+
+    <!--
+
+    <breakpoint filename="2phik.xsil" format="hdf5">
+      <dependencies basis="kx ky s">wavefunction</dependencies>
+    </breakpoint>
+
+    <breakpoint filename="2phi.xsil" format="hdf5">
+      <dependencies basis="x y s">wavefunction</dependencies>
+    </breakpoint>
+
+
+    <filter>
+      <dependencies>wavefunction</dependencies>
+      <![CDATA[
+        printf("Uint = %f \n", Uint);
+      ]]>
+    </filter>
+    -->
+
+  </sequence>
+
+  <output filename="out_2gp2d.xsil">
+      <sampling_group basis="x y s" initial_sample="no">
+        <moments>phiR phiI dens phase</moments>
+        <dependencies>wavefunction normalisation</dependencies>
+        <![CDATA[
+	  _SAMPLE_COMPLEX(phi)
+          dens = mod2(phi);
+	  phase = arg(phi);
+        ]]>
+      </sampling_group>
+      <sampling_group basis="s" initial_sample="no">
+        <moments>norm LzR LzI Lambda EKE EEVext EEintss EEint10 mmu EEPhi2 EEtot EkinPhi</moments>
+        <dependencies>normalisation dens_square ang_mom kinetic_energy spatial_energy chemical_potential number_charge </dependencies>
+        <![CDATA[
+	norm = Ncalc;
+	_SAMPLE_COMPLEX(Lz)
+	Lambda = dens1dens2*dens1dens2/(dens_sq(s=>0)*dens_sq(s=>1));
+	EKE = KE;
+	EEVext = EVext;
+	EEintss = Eintss;
+	EEint10 = Eint10;
+        mmu = mu;
+        EEPhi2 = EPhi2;
+	EEtot = KE -Omega*LzR -PPhi*LzR+ EPhi2 + EVext + Eintss + Eint10;
+	EkinPhi = KE -PPhi*LzR + EPhi2;
+        ]]>
+      </sampling_group>
+  </output>
+
+</simulation>
