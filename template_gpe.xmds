@@ -53,21 +53,17 @@
       ]]>
     </globals>
     <arguments append_args_to_output_filename="&args_in_filename;">
-     <argument name="use_phi0"  type="int"  default_value="1" />
-     <argument name="use_Vext0" type="int"  default_value="1" />
+     <argument name="use_phi0"  type="int"  default_value="0" />
+     <argument name="use_Vext0" type="int"  default_value="0" />
      <argument name="r0"        type="real" default_value="0" />
-     <argument name="N0"        type="real" default_value="1.0" />
      <argument name="N1"        type="real" default_value="1.0" />
-     <argument name="Q0"        type="real" default_value="1.0" />
-     <argument name="Q1"        type="real" default_value="1.0" />
-     <argument name="U00"       type="real" default_value="100.0" />
-     <argument name="U11"       type="real" default_value="100.0" />
-     <argument name="U01"       type="real" default_value="96.0" />
-     <argument name="U10"       type="real" default_value="96.0" />
-     <argument name="Omega"     type="real" default_value="0.0" />
-     <argument name="Phi0"      type="real" default_value="0.0" />
-     <argument name="Phi1"      type="real" default_value="0.0" />
-     <argument name="lcom"      type="real" default_value="0.0" />
+     <argument name="N2"        type="real" default_value="1.0" />
+     <argument name="U11"       type="real" default_value="10.0" />
+     <argument name="U22"       type="real" default_value="10.0" />
+     <argument name="U12"       type="real" default_value="6.0" />
+     <argument name="U21"       type="real" default_value="6.0" />
+     <argument name="Omega1"    type="real" default_value="0.0" />
+     <argument name="Omega2"    type="real" default_value="0.0" />
      <!--<![CDATA[
        /* derived constants */
        Uint_hbar_on16 = Uint_hbar/16.0;
@@ -80,11 +76,11 @@
     <transverse_dimensions>
       <dimension name="x" lattice="&nlat;"  domain="(-&xmax;, &xmax;)" />
       <dimension name="y" lattice="&nlat;"  domain="(-&ymax;, &ymax;)" />
-      <dimension name="s" type="integer" lattice="2" domain="(0,1)" aliases="sp"/>
+      <dimension name="s" type="integer" lattice="2" domain="(1,2)" aliases="sp"/>
     </transverse_dimensions>
   </geometry>
 
-  <vector name="radial_coord" initial_basis="x y" type="real">
+  <vector name="polar_coord" initial_basis="x y" type="real">
     <components> r2 r theta</components>
     <initialisation>
       <![CDATA[
@@ -98,7 +94,7 @@
   <vector name="potential" initial_basis="x y s" type="real">
     <components> Vext </components>
     <initialisation>
-      <dependencies basis="x y s">radial_coord potential0</dependencies>
+      <dependencies basis="x y s">polar_coord potential0</dependencies>
       <![CDATA[
         // Vext  = 0.5*(x*x+y*y);
         switch(use_Vext0){
@@ -118,12 +114,11 @@
   </vector>
 
   <vector name="number_charge" type="real" dimensions="s">
-    <components> NN QQ PPhi </components>
+    <components> NN OOmega </components>
     <initialisation>
       <![CDATA[
-	 NN = (1-s)*N0 + s*N1;
-	 QQ = (1-s)*Q0 + s*Q1;
-	 PPhi = (1-s)*Phi0 + s*Phi1;
+	 NN = (2-s)*N1 + (s-1)*N2;
+	 OOmega = (2-s)*Omega1 + (s-1)*Omega2;
       ]]>
     </initialisation>
   </vector>
@@ -132,15 +127,15 @@
     <components> UU </components>
     <initialisation>
       <![CDATA[
-      UU = U00*(1-s)*(1-sp)
-          +U11*(  s)*(  sp)
-	  +U01*(1-s)*(  sp)
-	  +U10*(  s)*(1-sp);
+      UU = U11*(2-s)*(2-sp)
+          +U22*(s-1)*(sp-1)
+	  +U12*(2-s)*(sp-1)
+	  +U21*(s-1)*(2-sp);
       ]]>
     </initialisation>
   </vector>
 
-  <computed_vector name="interaction" dimensions="x y s" type="complex">
+  <computed_vector name="interaction" dimensions="x y s" type="real">
     <components>
       Uphi2
     </components>
@@ -155,7 +150,7 @@
   <vector name="wavefunction" initial_basis="x y s" type="complex">
     <components> phi </components>
     <initialisation>
-	   <dependencies basis="x y s">radial_coord initial_wavefunction</dependencies>
+	   <dependencies basis="x y s">polar_coord initial_wavefunction</dependencies>
       <![CDATA[
       switch(use_phi0){
         case 0: phi = 1.0*exp(-(x*x+y*y)/(2-s)/16);
@@ -191,28 +186,28 @@
       <![CDATA[
         // Calculate the current normalisation of the wave function.
         dens_sq = mod2(phi)*mod2(phi);
-	dens1dens2 = mod2(phi(s=>0))*mod2(phi(s=>1));
+	dens1dens2 = mod2(phi(s=>1))*mod2(phi(s=>2));
       ]]>
     </evaluation>
   </computed_vector>
 
   <computed_vector name="grad_phi" dimensions="x y s" type="complex">
-    <components> phi_x phi_y </components>
+    <components> dphi_x dphi_y </components>
     <evaluation>
       <dependencies basis="kx ky s">wavefunction</dependencies>
       <![CDATA[
-          phi_x = -i*kx*phi;
-          phi_y = -i*ky*phi;
+          dphi_x = -i*kx*phi;
+          dphi_y = -i*ky*phi;
       ]]>
     </evaluation>
   </computed_vector>
 
   <computed_vector name="ang_mom" dimensions="s" type="complex">
-    <components> Lz </components>
+    <components> LLz </components>
     <evaluation>
       <dependencies basis="x y s">wavefunction grad_phi</dependencies>
       <![CDATA[
-        Lz = -conj(phi)*i*( x*phi_y-y*phi_x );
+        LLz = ( -conj(phi)*i*( x*dphi_y-y*dphi_x ) );
       ]]>
     </evaluation>
   </computed_vector>
@@ -230,37 +225,27 @@
 
   <!-- Calculate the spatial energy terms as integrals in position space -->
   <computed_vector name="spatial_energy" dimensions="s" type="real">
-    <components>EVext Eintss Eint10 EPhi2</components>
+    <components>EVext Eintss Eint12 EOmega2 mmu</components>
     <evaluation>
-      <dependencies basis="x y s">potential wavefunction number_charge radial_coord</dependencies>
+      <dependencies basis="x y s">potential wavefunction number_charge polar_coord kinetic_energy</dependencies>
       <![CDATA[
-            EVext  = Vext * mod2(phi);
-	    Eintss = 0.5 * (U00*(1-s)+s*U11) * mod2(phi) * mod2(phi);
-	    Eint10 = 0.5 * U10 * mod2(phi) * mod2(phi(s=>1-s));
-            EPhi2  = 0.5 * r2 * PPhi * PPhi * mod2(phi);
+            EVext   = Vext * mod2(phi);
+	    Eintss  = 0.5 * (U11*(2-s)+(s-1)*U22) * mod2(phi) * mod2(phi);
+	    Eint12  = 0.5 * U12 * mod2(phi(s=>1)) * mod2(phi(s=>2)); // put half in each component
+            EOmega2 = 0.5 * r2 * OOmega * OOmega  * mod2(phi);
+            mmu     = (KE + EVext + 2*Eintss +  2*Eint12)/NN;
       ]]>
     </evaluation>
   </computed_vector>
   
-    <!-- Calculate the spatial energy terms as integrals in position space -->
-  <computed_vector name="chemical_potential" dimensions="s" type="real">
-    <components>mu</components>
-    <evaluation>
-      <dependencies basis="s"> number_charge kinetic_energy spatial_energy </dependencies>
-      <![CDATA[
-         mu = (KE + EVext + 2*Eintss +  2*Eint10)/NN;
-      ]]>
-    </evaluation>
-  </computed_vector>
-
-  <computed_vector name="energy" dimensions="" type="real">
+  <computed_vector name="total_energy" dimensions="" type="real">
     <components> EN Ekin Epot Eint Virial</components>
     <evaluation>
-      <dependencies basis="x y s">wavefunction grad_phi potential</dependencies>
+      <dependencies basis="x y s">wavefunction grad_phi potential coupling</dependencies>
       <![CDATA[
-        Ekin = 0.5 *( mod2(phi_x) + mod2(phi_y) );
+        Ekin = 0.5 *( mod2(dphi_x) + mod2(dphi_y) );
         Epot = Vext * mod2(phi);
-	Eint = 0.5 * U00 * mod2(phi) * mod2(phi) + 0.5 * U10* mod2(phi) * mod2(phi(s=>1-s));
+	Eint = 0.5 * UU(sp=>s) * mod2(phi) * mod2(phi) + 0.5 * U12* mod2(phi(s=>1)) * mod2(phi(s=>2));
 	EN = Ekin + Epot + Eint;
 	Virial = Ekin - Epot + Eint;
       ]]>
@@ -270,7 +255,7 @@
   <sequence>
       <filter>
         <![CDATA[
-	printf("\n\n Real/Imag. time evolution of a rotating two-component BEC: \n\n\n");
+	printf("\n\n Real/Imag. time evolution of a charged two-component BEC: \n\n\n");
         ]]>
       </filter>
 
@@ -297,10 +282,10 @@
       </filters>
 
       <operators>
-        <operator kind="ip">
-          <operator_names>T</operator_names>
+        <operator kind="ex">
+          <operator_names>T2</operator_names>
           <![CDATA[
-            T = -0.5*(kx*kx+ky*ky);
+            T2 = -0.5*(kx*kx+ky*ky);
           ]]>
         </operator>
         <operator kind="ex">
@@ -318,13 +303,11 @@
 
         <integration_vectors>wavefunction</integration_vectors>
 
-        <dependencies>potential interaction number_charge radial_coord</dependencies>
+        <dependencies>potential interaction number_charge polar_coord</dependencies>
 
         <![CDATA[
-	  dphi_dt =  T[phi] - (Vext + 0.5*PPhi*PPhi*r2)*phi
-		    +QQ*Omega*(-x*Ty[phi]+y*Tx[phi])
-		    +PPhi *(-x*Ty[phi]+y*Tx[phi])
-		    +lcom*phi
+	  dphi_dt =  T2[phi] - (Vext + 0.5*OOmega*OOmega*r2)*phi
+		    +OOmega *(-x*Ty[phi]+y*Tx[phi])
 		    -Uphi2*phi;
         ]]>
       </operators>
@@ -340,7 +323,6 @@
       <dependencies basis="x y s">wavefunction</dependencies>
     </breakpoint>
 
-
     <filter>
       <dependencies>wavefunction</dependencies>
       <![CDATA[
@@ -351,8 +333,8 @@
 
   </sequence>
 
-  <output filename="out_2gp2d.xsil">
-      <sampling_group basis="x y s" initial_sample="no">
+  <output filename="out_gpe2d.xsil">
+      <sampling_group basis="x y s" initial_sample="yes">
         <moments>phiR phiI dens phase</moments>
         <dependencies>wavefunction normalisation</dependencies>
         <![CDATA[
@@ -361,21 +343,22 @@
 	  phase = arg(phi);
         ]]>
       </sampling_group>
-      <sampling_group basis="s" initial_sample="no">
-        <moments>norm LzR LzI Lambda EKE EEVext EEintss EEint10 mmu EEPhi2 EEtot EkinPhi</moments>
-        <dependencies>normalisation dens_square ang_mom kinetic_energy spatial_energy chemical_potential number_charge </dependencies>
+
+      <sampling_group basis="s" initial_sample="yes">
+        <moments>Nnorm Lz LLzR LLzI EEkin EEkin_canonical EEVext EEintss EEint12 chem_pot EEOmega2 EEtot</moments>
+        <dependencies>normalisation ang_mom kinetic_energy spatial_energy number_charge </dependencies>
         <![CDATA[
-	norm = Ncalc;
-	_SAMPLE_COMPLEX(Lz)
-	Lambda = dens1dens2*dens1dens2/(dens_sq(s=>0)*dens_sq(s=>1));
-	EKE = KE;
-	EEVext = EVext;
-	EEintss = Eintss;
-	EEint10 = Eint10;
-        mmu = mu;
-        EEPhi2 = EPhi2;
-	EEtot = KE -Omega*LzR -PPhi*LzR+ EPhi2 + EVext + Eintss + Eint10;
-	EkinPhi = KE -PPhi*LzR + EPhi2;
+	Nnorm    = Ncalc;
+	_SAMPLE_COMPLEX(LLz)
+	Lz       = LLzR;
+        EEOmega2 = EOmega2;
+	EEkin    = KE -OOmega*Lz + EOmega2;
+	EEkin_canonical = KE;
+	EEVext   = EVext;
+	EEintss  = Eintss;
+	EEint12  = Eint12;
+        chem_pot = mmu;
+	EEtot    = EEkin + EVext + Eintss + Eint12;
         ]]>
       </sampling_group>
   </output>

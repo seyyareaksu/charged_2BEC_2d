@@ -1,3 +1,11 @@
+# some files related to our library
+#
+exportnb.py
+compile_gpe.xmds
+xgpe2d
+xgpe2d.cc
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

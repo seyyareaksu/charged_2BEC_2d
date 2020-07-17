@@ -25,6 +25,7 @@ https://repo.anaconda.com/pkgs/main/linux-64/pcre-8.44-he6710b0_0.conda
 https://repo.anaconda.com/pkgs/main/linux-64/xz-5.2.5-h7b6447c_0.conda
 https://repo.anaconda.com/pkgs/main/linux-64/zlib-1.2.11-h7b6447c_3.conda
 https://repo.anaconda.com/pkgs/main/linux-64/glib-2.65.0-h3eb4bd4_0.conda
+https://repo.anaconda.com/pkgs/main/linux-64/hdf5-1.10.6-hb1b8bf9_0.conda
 https://repo.anaconda.com/pkgs/main/linux-64/libedit-3.1.20191231-h7b6447c_0.conda
 https://repo.anaconda.com/pkgs/main/linux-64/libpng-1.6.37-hbc83047_0.conda
 https://repo.anaconda.com/pkgs/main/linux-64/libxml2-2.9.10-he19cac6_1.conda
@@ -105,6 +106,7 @@ https://repo.anaconda.com/pkgs/main/noarch/requests-2.24.0-py_0.conda
 https://repo.anaconda.com/pkgs/main/linux-64/notebook-6.0.3-py38_0.conda
 https://repo.anaconda.com/pkgs/main/noarch/jupyterlab_server-1.1.5-py_0.conda
 https://repo.anaconda.com/pkgs/main/noarch/jupyterlab-2.1.5-py_0.conda
+https://repo.anaconda.com/pkgs/main/linux-64/h5py-2.10.0-py38hd6299e0_1.conda
 https://repo.anaconda.com/pkgs/main/linux-64/matplotlib-3.2.2-0.conda
 https://repo.anaconda.com/pkgs/main/linux-64/matplotlib-base-3.2.2-py38hef1b27d_0.conda
 https://repo.anaconda.com/pkgs/main/linux-64/mkl_fft-1.1.0-py38h23d657b_0.conda
