@@ -53,17 +53,18 @@
       ]]>
     </globals>
     <arguments append_args_to_output_filename="&args_in_filename;">
-     <argument name="use_phi0"  type="int"  default_value="0" />
-     <argument name="use_Vext0" type="int"  default_value="0" />
-     <argument name="r0"        type="real" default_value="0" />
-     <argument name="N1"        type="real" default_value="1.0" />
-     <argument name="N2"        type="real" default_value="1.0" />
-     <argument name="U11"       type="real" default_value="10.0" />
-     <argument name="U22"       type="real" default_value="10.0" />
-     <argument name="U12"       type="real" default_value="6.0" />
-     <argument name="U21"       type="real" default_value="6.0" />
-     <argument name="Omega1"    type="real" default_value="0.0" />
-     <argument name="Omega2"    type="real" default_value="0.0" />
+     <argument name="use_phi0"   type="int"  default_value="0" />
+     <argument name="use_Vext0"  type="int"  default_value="0" />
+     <argument name="use_OOmega2" type="int"  default_value="1" />
+     <argument name="r0"         type="real" default_value="0" />
+     <argument name="N1"         type="real" default_value="1.0" />
+     <argument name="N2"         type="real" default_value="1.0" />
+     <argument name="U11"        type="real" default_value="10.0" />
+     <argument name="U22"        type="real" default_value="10.0" />
+     <argument name="U12"        type="real" default_value="6.0" />
+     <argument name="U21"        type="real" default_value="6.0" />
+     <argument name="Omega1"     type="real" default_value="0.0" />
+     <argument name="Omega2"     type="real" default_value="0.0" />
      <!--<![CDATA[
        /* derived constants */
        Uint_hbar_on16 = Uint_hbar/16.0;
@@ -232,7 +233,7 @@
             EVext   = Vext * mod2(phi);
 	    Eintss  = 0.5 * (U11*(2-s)+(s-1)*U22) * mod2(phi) * mod2(phi);
 	    Eint12  = 0.5 * U12 * mod2(phi(s=>1)) * mod2(phi(s=>2)); // put half in each component
-            EOmega2 = 0.5 * r2 * OOmega * OOmega  * mod2(phi);
+            EOmega2 = use_OOmega2 * 0.5 * r2 * OOmega * OOmega  * mod2(phi);
             mmu     = (KE + EVext + 2*Eintss +  2*Eint12)/NN;
       ]]>
     </evaluation>
@@ -306,7 +307,7 @@
         <dependencies>potential interaction number_charge polar_coord</dependencies>
 
         <![CDATA[
-	  dphi_dt =  T2[phi] - (Vext + 0.5*OOmega*OOmega*r2)*phi
+	  dphi_dt =  T2[phi] - (Vext + use_OOmega2*0.5*OOmega*OOmega*r2)*phi
 		    +OOmega *(-x*Ty[phi]+y*Tx[phi])
 		    -Uphi2*phi;
         ]]>
