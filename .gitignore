@@ -6,7 +6,6 @@ xgpe2d
 xgpe2d.cc
 2Vext.h5
 2phi0.h5
-busch.ipynb
 out_gpe2d.h5
 out_gpe2d.pkl
 out_gpe2d.py
